@@ -34,12 +34,7 @@ log = logging.getLogger("server")
 
 app = Flask(__name__)
 
-DATABASE_URL = os.environ.get("DATABASE_URL")
-if not DATABASE_URL:
-    raise RuntimeError("Falta la variable de entorno DATABASE_URL")
-# Railway usa 'postgres://' (antigua forma) — psycopg2 necesita 'postgresql://'
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+_DATABASE_URL = None
 
 _DDL = """
 CREATE TABLE IF NOT EXISTS vitals (
@@ -53,19 +48,27 @@ CREATE INDEX IF NOT EXISTS idx_vitals_bed_ts ON vitals (bed, ts);
 CREATE INDEX IF NOT EXISTS idx_vitals_ip_ts  ON vitals (monitor_ip, ts);
 """
 
+_db_initialized = False
+
 
 def get_conn():
-    return psycopg2.connect(DATABASE_URL)
-
-
-def init_db():
-    with get_conn() as conn:
+    global _DATABASE_URL, _db_initialized
+    if _DATABASE_URL is None:
+        url = os.environ.get("DATABASE_URL")
+        if not url:
+            raise RuntimeError("Falta la variable de entorno DATABASE_URL")
+        # Railway usa 'postgres://' (antigua forma) — psycopg2 necesita 'postgresql://'
+        if url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql://", 1)
+        _DATABASE_URL = url
+    conn = psycopg2.connect(_DATABASE_URL)
+    if not _db_initialized:
         with conn.cursor() as cur:
             cur.execute(_DDL)
-    log.info("PostgreSQL listo.")
-
-
-init_db()
+        conn.commit()
+        _db_initialized = True
+        log.info("PostgreSQL listo.")
+    return conn
 
 
 @app.get("/health")
