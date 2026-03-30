@@ -90,33 +90,38 @@ def receive_vitals():
     """
     Recibe un JSON con una o varias lecturas del colector y las inserta en PostgreSQL.
     """
-    data = request.get_json(force=True, silent=True)
-    if not data:
-        return jsonify({"error": "body vacío o no es JSON"}), 400
+    try:
+        data = request.get_json(force=True, silent=True)
+        if not data:
+            return jsonify({"error": "body vacío o no es JSON"}), 400
 
-    readings = data if isinstance(data, list) else [data]
-    rows = []
-    for r in readings:
-        ip  = r.get("monitor_ip", "unknown")
-        bed = r.get("bed") or ip
-        ts  = r.get("timestamp")
-        if not ts:
-            continue
-        rows.append((ip, bed, ts, psycopg2.extras.Json(r)))
-        log.info("  cama=%-8s  ts=%s  HR=%s  SpO2=%s",
-                 bed, ts, r.get("HR"), r.get("SpO2"))
+        readings = data if isinstance(data, list) else [data]
+        rows = []
+        for r in readings:
+            ip  = r.get("monitor_ip", "unknown")
+            bed = r.get("bed") or ip
+            ts  = r.get("timestamp")
+            if not ts:
+                continue
+            rows.append((ip, bed, ts, psycopg2.extras.Json(r)))
+            log.info("  cama=%-8s  ts=%s  HR=%s  SpO2=%s",
+                     bed, ts, r.get("HR"), r.get("SpO2"))
 
-    if rows:
-        with get_conn() as conn:
-            with conn.cursor() as cur:
-                psycopg2.extras.execute_values(
-                    cur,
-                    "INSERT INTO vitals (monitor_ip, bed, ts, data) VALUES %s",
-                    rows,
-                )
+        if rows:
+            with get_conn() as conn:
+                with conn.cursor() as cur:
+                    psycopg2.extras.execute_values(
+                        cur,
+                        "INSERT INTO vitals (monitor_ip, bed, ts, data) VALUES %s",
+                        rows,
+                    )
 
-    log.info("Recibidas %d lecturas de %s", len(rows), request.remote_addr)
-    return jsonify({"ok": True, "received": len(rows)}), 200
+        log.info("Recibidas %d lecturas de %s", len(rows), request.remote_addr)
+        return jsonify({"ok": True, "received": len(rows)}), 200
+
+    except Exception as e:
+        log.exception("Error en POST /vitals")
+        return jsonify({"error": str(e)}), 500
 
 
 @app.get("/vitals")
