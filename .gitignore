@@ -1,0 +1,23 @@
+# Base de datos de runtime (generada por database.py)
+*.db
+*.db-shm
+*.db-wal
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+
+# Entorno virtual
+.venv/
+venv/
+env/
+
+# pyenv
+.python-version
+
+# Variables de entorno
+.env
+.env.*
+!.env.example
