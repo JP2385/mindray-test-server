@@ -51,16 +51,25 @@ CREATE INDEX IF NOT EXISTS idx_vitals_ip_ts  ON vitals (monitor_ip, ts);
 _db_initialized = False
 
 
+def _clean_url(url: str) -> str:
+    """Normaliza la URL para psycopg2: corrige prefijo y elimina parámetros no soportados."""
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql://", 1)
+    # psycopg2 no soporta channel_binding — lo eliminamos
+    from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+    p = urlparse(url)
+    params = {k: v for k, v in parse_qs(p.query).items() if k != "channel_binding"}
+    new_query = urlencode({k: v[0] for k, v in params.items()})
+    return urlunparse(p._replace(query=new_query))
+
+
 def get_conn():
     global _DATABASE_URL, _db_initialized
     if _DATABASE_URL is None:
         url = os.environ.get("DATABASE_URL")
         if not url:
             raise RuntimeError("Falta la variable de entorno DATABASE_URL")
-        # Railway usa 'postgres://' (antigua forma) — psycopg2 necesita 'postgresql://'
-        if url.startswith("postgres://"):
-            url = url.replace("postgres://", "postgresql://", 1)
-        _DATABASE_URL = url
+        _DATABASE_URL = _clean_url(url)
     conn = psycopg2.connect(_DATABASE_URL)
     if not _db_initialized:
         with conn.cursor() as cur:
