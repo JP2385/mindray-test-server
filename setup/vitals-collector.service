@@ -1,0 +1,24 @@
+[Unit]
+Description=Vitals Collector — captura de signos vitales
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=vitals
+WorkingDirectory=/home/vitals/vitals-collector
+ExecStart=/home/vitals/vitals-collector/venv/bin/python3 /home/vitals/vitals-collector/main.py
+Restart=always
+RestartSec=10
+# Reiniciar el proceso si no hace watchdog en 60s (requiere sd_notify, activar cuando se integre)
+# WatchdogSec=60
+
+# Seguridad básica: el proceso no puede adquirir nuevos privilegios
+NoNewPrivileges=true
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=vitals-collector
+
+[Install]
+WantedBy=multi-user.target

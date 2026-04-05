@@ -14,10 +14,10 @@ __pycache__/
 venv/
 env/
 
-# pyenv
-.python-version
-
 # Variables de entorno
 .env
 .env.*
 !.env.example
+
+# Credenciales del dispositivo (generado por setup.sh)
+identity.json
